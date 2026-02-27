@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-i2cdev = "0.6.2"
+i2cdev = "0.6.2"    # Interface with I2C
+v4l = "0.14.0"      # Video 4 Linux
+yuv = "0.8.11"      # To convert the capture format to RGB
