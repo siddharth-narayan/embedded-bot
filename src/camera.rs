@@ -1,36 +1,38 @@
 use core::fmt;
 
-use v4l::{Device, FourCC};
 use v4l::buffer::Type;
 use v4l::io::mmap::Stream;
 use v4l::io::traits::CaptureStream;
+use v4l::v4l_sys::{
+    V4L2_CID_EXPOSURE, V4L2_CID_EXPOSURE_ABSOLUTE, V4L2_CID_EXPOSURE_AUTO, V4L2_CID_IRIS_ABSOLUTE,
+};
 use v4l::video::Capture;
+use v4l::{Control, Device, FourCC};
 
 use yuv::{YuvPackedImage, YuvRange};
 
-const COLOR_ORANGE: Color = Color {
-    r: 255,
-    g: 128,
-    b: 0,
-};
+const COLOR_RED: Color = Color { r: 255, g: 0, b: 0 };
+
+const COLOR_GREEN: Color = Color { r: 0, g: 255, b: 0 };
 
 const COLOR_BLUE: Color = Color { r: 0, g: 0, b: 255 };
 
-const COLOR_WHITE: Color = Color {
-    r: 255,
-    g: 255,
-    b: 255,
+const COLOR_NONE: Color = Color {
+    r: 16,
+    g: 16,
+    b: 16,
 };
 
 pub enum ClosestColor {
-    Orange,
+    Red,
+    Green,
     Blue,
-    White,
+    None,
 }
 
 impl ClosestColor {
     pub fn closest(c: &Color) -> Self {
-        let all_colors = [COLOR_BLUE, COLOR_ORANGE, COLOR_WHITE];
+        let all_colors = [COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_NONE];
 
         let mut min_color_idx = 0;
         let mut min_difference = u32::MAX;
@@ -47,10 +49,10 @@ impl ClosestColor {
         }
 
         match min_color_idx {
-            0 => ClosestColor::Blue,
-            1 => ClosestColor::Orange,
-            2 => ClosestColor::White,
-            _ => ClosestColor::White, // Should never happen though
+            0 => ClosestColor::Red,
+            1 => ClosestColor::Green,
+            2 => ClosestColor::Blue,
+            _ => ClosestColor::None,
         }
     }
 }
@@ -58,9 +60,10 @@ impl ClosestColor {
 impl fmt::Display for ClosestColor {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            ClosestColor::Red => write!(f, "Red"),
+            ClosestColor::Green => write!(f, "Green"),
             ClosestColor::Blue => write!(f, "Blue"),
-            ClosestColor::Orange => write!(f, "Orange"),
-            ClosestColor::White => write!(f, "White"),
+            ClosestColor::None => write!(f, "None"),
         }
     }
 }
@@ -95,12 +98,42 @@ pub struct CameraVideoStream<'stream> {
 impl<'stream> CameraVideoStream<'stream> {
     pub fn new() -> std::io::Result<Self> {
         let mut d = Device::new(0)?;
-        
+
         let mut fmt = d.format()?;
         fmt.width = 1280;
         fmt.height = 720;
         fmt.fourcc = FourCC::new(b"YUYV");
         println!("Format in use:\n{}", d.set_format(&fmt)?);
+
+        match d.set_control(Control {
+            id: V4L2_CID_EXPOSURE_AUTO,
+            value: v4l::control::Value::Integer(3), // V4L2_EXPOSURE_MANUAL
+        }) {
+            Err(e) => {
+                println!("Failed to set exposure to manual: {}", e);
+            }
+            _ => (),
+        }
+
+        // match d.set_control(Control {
+        //     id: V4L2_CID_EXPOSURE_ABSOLUTE,
+        //     value: v4l::control::Value::Integer(625) // Where "1" would be 1/10000 of a second exposure time
+        // }) {
+        //     Err(e) => {
+        //         println!("Failed to set exposure time: {}", e);
+        //     }
+        //     _ => ()
+        // }
+
+        // match d.set_control(Control {
+        //     id: V4L2_CID_IRIS_ABSOLUTE,
+        //     value: v4l::control::Value::Integer(10) // Where "1" would be 1/10000 of a second exposure time
+        // }) {
+        //     Err(e) => {
+        //         println!("Failed to set aperture to wide open: {}", e);
+        //     }
+        //     _ => ()
+        // }
 
         let s = Stream::with_buffers(&mut d, Type::VideoCapture, 4)?;
 
@@ -132,7 +165,7 @@ impl<'stream> CameraVideoStream<'stream> {
             &mut out,
             3840,
             YuvRange::Full,
-            yuv::YuvStandardMatrix::Fcc,
+            yuv::YuvStandardMatrix::Bt709,
         )
         .unwrap();
 
@@ -151,16 +184,21 @@ impl<'stream> CameraVideoStream<'stream> {
         }
 
         // Can be unwrapped because the average will never be > u8::MAX
+        let channel_pixels = out.len() as u64 / 3;
         Color {
-            r: (r / (out.len() as u64)).try_into().unwrap(),
-            g: (g / (out.len() as u64)).try_into().unwrap(),
-            b: (b / (out.len() as u64)).try_into().unwrap(),
+            r: (r / channel_pixels).try_into().unwrap(),
+            g: (g / channel_pixels).try_into().unwrap(),
+            b: (b / channel_pixels).try_into().unwrap(),
         }
     }
 
     pub fn get_next_frame_closest_color(&mut self) {
         let average_color = self.average_next_frame();
 
-        println!("The closest color to {} is {}", &average_color, ClosestColor::closest(&average_color))
+        println!(
+            "The closest color to {} is {}",
+            &average_color,
+            ClosestColor::closest(&average_color)
+        )
     }
 }
