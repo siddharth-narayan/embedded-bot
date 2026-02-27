@@ -64,30 +64,37 @@ impl Robot {
 
     fn write_block_data(&mut self, register: u8, values: &[u8]) -> Result<(), LinuxI2CError> {
         self._internal_device
-            .smbus_write_block_data(register, values)
+            .smbus_write_i2c_block_data(register, values)
     }
 
-    pub fn move_rotate(r: Rotation, distance: u64) {}
+    fn move_motor(&mut self, motor: Motor, direction: MotorDirection, speed: u8) -> ControlError<LinuxI2CError> {
+        self.write_block_data(
+            Register::MotorControl as u8,
+            &[motor as u8, direction as u8, speed],
+        )?;
+
+        Ok(())
+    }
 
     pub fn stop(&mut self) -> ControlError<LinuxI2CError> {
         self.write_block_data(
             Register::MotorControl as u8,
-            &[Motor::ForwardLeft as u8, MotorDirection::Reverse as u8, 0u8],
+            &[Motor::ForwardLeft as u8, MotorDirection::Forward as u8, 0u8],
         )?;
 
         self.write_block_data(
             Register::MotorControl as u8,
-            &[Motor::ForwardLeft as u8, MotorDirection::Reverse as u8, 0u8],
+            &[Motor::ForwardRight as u8, MotorDirection::Forward as u8, 0u8],
         )?;
 
         self.write_block_data(
             Register::MotorControl as u8,
-            &[Motor::ForwardLeft as u8, MotorDirection::Reverse as u8, 0u8],
+            &[Motor::BackwardLeft as u8, MotorDirection::Forward as u8, 0u8],
         )?;
 
         self.write_block_data(
             Register::MotorControl as u8,
-            &[Motor::ForwardLeft as u8, MotorDirection::Reverse as u8, 0u8],
+            &[Motor::BackwardRight as u8, MotorDirection::Forward as u8, 0u8],
         )?;
 
         Ok(())
@@ -103,7 +110,7 @@ impl Robot {
                 self.write_block_data(
                     Register::MotorControl as u8,
                     &[
-                        Motor::ForwardLeft as u8,
+                        Motor::ForwardRight as u8,
                         MotorDirection::Forward as u8,
                         255u8,
                     ],
@@ -113,7 +120,7 @@ impl Robot {
                 self.write_block_data(
                     Register::MotorControl as u8,
                     &[
-                        Motor::ForwardRight as u8,
+                        Motor::ForwardLeft as u8,
                         MotorDirection::Forward as u8,
                         255u8,
                     ],
