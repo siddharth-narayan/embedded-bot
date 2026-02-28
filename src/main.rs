@@ -15,7 +15,7 @@ fn main() {
         }
     };
 
-    robot.test();
+    _ = robot.test();
     return;
 
     let mut camera_stream = match CameraVideoStream::new() {

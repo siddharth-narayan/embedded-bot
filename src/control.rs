@@ -29,16 +29,16 @@ enum Register {
 #[derive(Clone, Copy)]
 enum Motor {
     ForwardLeft = 0,
-    ForwardRight = 1,
-    BackwardLeft = 2,
+    BackwardLeft = 1,
+    ForwardRight = 2,
     BackwardRight = 3,
 }
 
 #[repr(u8)]
 #[derive(Clone, Copy)]
 enum MotorDirection {
-    Forward = 1,
-    Reverse = 0,
+    Forward = 0,
+    Reverse = 1,
 }
 
 #[derive(Clone, Copy)]
@@ -68,17 +68,30 @@ impl Robot {
         })
     }
 
-    pub fn test(&mut self) {
+    pub fn test(&mut self) -> ControlError<LinuxI2CError> {
+        let test_speed = 255u8;
         for motor in [Motor::ForwardLeft, Motor::ForwardRight, Motor::BackwardLeft, Motor::BackwardRight] {
-            _ = self.move_motor(motor, MotorDirection::Forward, 128);
+            self.move_motor(motor, MotorDirection::Forward, test_speed)?;
             sleep(Duration::from_millis(500));
-            _ = self.move_motor(motor, MotorDirection::Reverse, 128);
             
-            sleep(Duration::from_millis(1500));
+            self.move_motor(motor, MotorDirection::Reverse, test_speed)?;
+            sleep(Duration::from_millis(500));
+
+            self.stop()?;
+            sleep(Duration::from_millis(1000));
         }
 
-        _ = self.stop();
+        for direction in [Direction::Forward, Direction::Backward, Direction::Left, Direction::Right] {
+            self.move_direction(direction, test_speed, Duration::from_millis(2000))?;
+        }
 
+        for rotation in [Rotation::Clockwise, Rotation::CounterClockwise] {
+            self.move_rotate(rotation, test_speed, Duration::from_millis(2000))?;
+        }
+
+        self.stop()?;
+
+        Ok(())
     }
 
     fn write_block_data(&mut self, register: u8, values: &[u8]) -> Result<(), LinuxI2CError> {
@@ -119,6 +132,35 @@ impl Robot {
         Ok(())
     }
     
+    pub fn move_rotate(
+        &mut self,
+        direction: Rotation,
+        speed: u8,
+        duration: Duration
+    ) -> ControlError<LinuxI2CError> {
+        match direction {
+            Rotation::CounterClockwise => {
+                self.move_motor(Motor::ForwardLeft, MotorDirection::Reverse, speed)?;
+                self.move_motor(Motor::ForwardRight, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::BackwardLeft, MotorDirection::Reverse, speed)?;
+                self.move_motor(Motor::BackwardRight, MotorDirection::Forward, speed)?;
+            }
+
+            Rotation::Clockwise => {
+                self.move_motor(Motor::ForwardLeft, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::ForwardRight, MotorDirection::Reverse, speed)?;
+                self.move_motor(Motor::BackwardLeft, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::BackwardRight, MotorDirection::Reverse, speed)?;
+            }
+        }
+
+        sleep(duration);
+
+        self.stop()?;
+        
+        Ok(())
+    }
+
     pub fn move_direction(
         &mut self,
         direction: Direction,
@@ -141,22 +183,24 @@ impl Robot {
             }
 
             Direction::Left => {
-                self.move_motor(Motor::ForwardLeft, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::ForwardLeft, MotorDirection::Reverse, speed)?;
                 self.move_motor(Motor::ForwardRight, MotorDirection::Forward, speed)?;
                 self.move_motor(Motor::BackwardLeft, MotorDirection::Forward, speed)?;
-                self.move_motor(Motor::BackwardRight, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::BackwardRight, MotorDirection::Reverse, speed)?;
             }
 
             Direction::Right => {
                 self.move_motor(Motor::ForwardLeft, MotorDirection::Forward, speed)?;
-                self.move_motor(Motor::ForwardRight, MotorDirection::Forward, speed)?;
-                self.move_motor(Motor::BackwardLeft, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::ForwardRight, MotorDirection::Reverse, speed)?;
+                self.move_motor(Motor::BackwardLeft, MotorDirection::Reverse, speed)?;
                 self.move_motor(Motor::BackwardRight, MotorDirection::Forward, speed)?;
             }
         }
 
         sleep(duration);
 
+        self.stop()?;
+        
         Ok(())
     }
 }
