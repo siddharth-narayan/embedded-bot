@@ -15,12 +15,7 @@ fn main() {
         }
     };
 
-    robot.move_direction(Direction::Forward, Duration::from_millis(500));
-
-    sleep(Duration::from_secs(2));
-
-    robot.stop();
-    
+    robot.test();
     return;
 
     let mut camera_stream = match CameraVideoStream::new() {

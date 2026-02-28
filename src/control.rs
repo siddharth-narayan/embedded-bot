@@ -10,6 +10,7 @@ pub type ControlError<E> = Result<(), E>;
 const CONTROLLER_ADDRESS: u16 = 0x2B;
 
 #[repr(u8)]
+#[derive(Clone, Copy)]
 enum Register {
     MotorControl = 0x01,
     ServoControl = 0x02,
@@ -23,7 +24,9 @@ enum Register {
 }
 
 // 0 - 3
+
 #[repr(u8)]
+#[derive(Clone, Copy)]
 enum Motor {
     ForwardLeft = 0,
     ForwardRight = 1,
@@ -32,11 +35,13 @@ enum Motor {
 }
 
 #[repr(u8)]
+#[derive(Clone, Copy)]
 enum MotorDirection {
     Forward = 1,
     Reverse = 0,
 }
 
+#[derive(Clone, Copy)]
 pub enum Direction {
     Forward,
     Backward,
@@ -44,6 +49,7 @@ pub enum Direction {
     Right,
 }
 
+#[derive(Clone, Copy)]
 pub enum Rotation {
     Clockwise,
     CounterClockwise,
@@ -60,6 +66,19 @@ impl Robot {
         Ok(Robot {
             _internal_device: device,
         })
+    }
+
+    pub fn test(&mut self) {
+        for motor in [Motor::ForwardLeft, Motor::ForwardRight, Motor::BackwardLeft, Motor::BackwardRight] {
+            _ = self.move_motor(motor, MotorDirection::Forward, 128);
+            sleep(Duration::from_millis(500));
+            _ = self.move_motor(motor, MotorDirection::Reverse, 128);
+            
+            sleep(Duration::from_millis(1500));
+        }
+
+        _ = self.stop();
+
     }
 
     fn write_block_data(&mut self, register: u8, values: &[u8]) -> Result<(), LinuxI2CError> {
@@ -103,162 +122,36 @@ impl Robot {
     pub fn move_direction(
         &mut self,
         direction: Direction,
+        speed: u8,
         duration: Duration,
     ) -> ControlError<LinuxI2CError> {
         match direction {
             Direction::Forward => {
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::ForwardRight as u8,
-                        MotorDirection::Forward as u8,
-                        255u8,
-                    ],
-                )?;
-
-                sleep(Duration::from_millis(100));
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::ForwardLeft as u8,
-                        MotorDirection::Forward as u8,
-                        255u8,
-                    ],
-                )?;
-
-                sleep(Duration::from_millis(100));
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::BackwardLeft as u8,
-                        MotorDirection::Forward as u8,
-                        255u8,
-                    ],
-                )?;
-
-                sleep(Duration::from_millis(100));
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::BackwardRight as u8,
-                        MotorDirection::Forward as u8,
-                        255u8,
-                    ],
-                )?;
+                self.move_motor(Motor::ForwardLeft, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::ForwardRight, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::BackwardLeft, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::BackwardRight, MotorDirection::Forward, speed)?;
             }
 
             Direction::Backward => {
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::ForwardLeft as u8,
-                        MotorDirection::Reverse as u8,
-                        255u8,
-                    ],
-                )?;
-
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::ForwardRight as u8,
-                        MotorDirection::Reverse as u8,
-                        255u8,
-                    ],
-                )?;
-
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::BackwardLeft as u8,
-                        MotorDirection::Reverse as u8,
-                        255u8,
-                    ],
-                )?;
-
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::BackwardRight as u8,
-                        MotorDirection::Reverse as u8,
-                        255u8,
-                    ],
-                )?;
+                self.move_motor(Motor::ForwardLeft, MotorDirection::Reverse, speed)?;
+                self.move_motor(Motor::ForwardRight, MotorDirection::Reverse, speed)?;
+                self.move_motor(Motor::BackwardLeft, MotorDirection::Reverse, speed)?;
+                self.move_motor(Motor::BackwardRight, MotorDirection::Reverse, speed)?;
             }
 
             Direction::Left => {
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::ForwardLeft as u8,
-                        MotorDirection::Forward as u8,
-                        255u8,
-                    ],
-                )?;
-
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::ForwardRight as u8,
-                        MotorDirection::Forward as u8,
-                        255u8,
-                    ],
-                )?;
-
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::BackwardLeft as u8,
-                        MotorDirection::Reverse as u8,
-                        255u8,
-                    ],
-                )?;
-
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::BackwardRight as u8,
-                        MotorDirection::Reverse as u8,
-                        255u8,
-                    ],
-                )?;
+                self.move_motor(Motor::ForwardLeft, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::ForwardRight, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::BackwardLeft, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::BackwardRight, MotorDirection::Forward, speed)?;
             }
 
             Direction::Right => {
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::ForwardLeft as u8,
-                        MotorDirection::Reverse as u8,
-                        255u8,
-                    ],
-                )?;
-
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::ForwardRight as u8,
-                        MotorDirection::Reverse as u8,
-                        255u8,
-                    ],
-                )?;
-
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::BackwardLeft as u8,
-                        MotorDirection::Forward as u8,
-                        255u8,
-                    ],
-                )?;
-
-                self.write_block_data(
-                    Register::MotorControl as u8,
-                    &[
-                        Motor::BackwardRight as u8,
-                        MotorDirection::Forward as u8,
-                        255u8,
-                    ],
-                )?;
+                self.move_motor(Motor::ForwardLeft, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::ForwardRight, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::BackwardLeft, MotorDirection::Forward, speed)?;
+                self.move_motor(Motor::BackwardRight, MotorDirection::Forward, speed)?;
             }
         }
 
