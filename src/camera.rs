@@ -1,28 +1,39 @@
 use core::fmt;
+use std::u32;
 
 use v4l::buffer::Type;
 use v4l::io::mmap::Stream;
 use v4l::io::traits::CaptureStream;
-use v4l::v4l_sys::{
-    V4L2_CID_EXPOSURE, V4L2_CID_EXPOSURE_ABSOLUTE, V4L2_CID_EXPOSURE_AUTO, V4L2_CID_IRIS_ABSOLUTE,
-};
+use v4l::v4l_sys::V4L2_CID_EXPOSURE_AUTO;
 use v4l::video::Capture;
 use v4l::{Control, Device, FourCC};
 
-use yuv::{YuvPackedImage, YuvRange};
+use yuv::YuvPackedImage;
 
-const COLOR_RED: Color = Color { r: 255, g: 0, b: 0 };
+#[derive(Clone)]
+pub struct YuvChroma {
+    u: u8,
+    v: u8,
+}
 
-const COLOR_GREEN: Color = Color { r: 0, g: 255, b: 0 };
+impl YuvChroma {
+    pub fn new(u: u8, v: u8) -> Self {
+        Self { u: u, v: v }
+    }
 
-const COLOR_BLUE: Color = Color { r: 0, g: 0, b: 255 };
+    fn distance(&self, other: &YuvChroma) -> u32 {
+        // Ew
+        let dx = i32::from(self.u) - i32::from(other.u);
+        let dy = i32::from(self.v) - i32::from(other.v);
 
-const COLOR_NONE: Color = Color {
-    r: 16,
-    g: 16,
-    b: 16,
-};
+        // println!("dx: {}, dy:{}", dx, dy);
 
+        // Powers of two are always positive
+        u32::try_from(dx.pow(2) + dy.pow(2)).unwrap()
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
 pub enum ClosestColor {
     Red,
     Green,
@@ -31,29 +42,42 @@ pub enum ClosestColor {
 }
 
 impl ClosestColor {
-    pub fn closest(c: &Color) -> Self {
-        let all_colors = [COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_NONE];
+    fn values() -> [Self; 4] {
+        [Self::Red, Self::Green, Self::Blue, Self::None]
+    }
 
-        let mut min_color_idx = 0;
-        let mut min_difference = u32::MAX;
+    fn chroma(&self) -> YuvChroma {
+        match self {
+            // ClosestColor::Blue => YuvChroma::new(127, -64),
+            // ClosestColor::Red => YuvChroma::new(-32, 96),
+            // ClosestColor::Green => YuvChroma::new(-64, -96),
+            // ClosestColor::None => YuvChroma::new(0, 0),
+            ClosestColor::Blue => YuvChroma::new(167, 47),
+            ClosestColor::Red => YuvChroma::new(113, 150),
+            ClosestColor::Green => YuvChroma::new(106, 99),
+            ClosestColor::None => YuvChroma::new(128, 128),
+        }
+    }
 
-        for (index, color) in all_colors.iter().enumerate() {
-            let difference = c.abs_diff(&color);
+    fn closest(y: u8, u: u8, v: u8) -> ClosestColor {
+        let input: YuvChroma = YuvChroma::new(u, v);
 
-            println!("Difference between {} and {} is {}", c, color, difference);
+        // Clip darker colors
+        if y < 128 {
+            return ClosestColor::None
+        }
 
-            if difference < min_difference {
-                min_color_idx = index;
-                min_difference = difference;
+        let mut closest_color = ClosestColor::None;
+        let mut min = u32::MAX;
+        for value in ClosestColor::values() {
+            let distance = value.chroma().distance(&input);
+            if distance < min {
+                min = distance;
+                closest_color = value;
             }
         }
 
-        match min_color_idx {
-            0 => ClosestColor::Red,
-            1 => ClosestColor::Green,
-            2 => ClosestColor::Blue,
-            _ => ClosestColor::None,
-        }
+        closest_color
     }
 }
 
@@ -68,28 +92,135 @@ impl fmt::Display for ClosestColor {
     }
 }
 
-struct Color {
-    r: u8,
-    g: u8,
-    b: u8,
+pub struct FrameInfo {
+    pub colors: Vec<ClosestColor>,
+    pub frame_stride: u32,
+
+    pub pixel1_chroma: YuvChroma,
+
+    pub reds: usize,
+    pub greens: usize,
+    pub blues: usize,
+    pub nones: usize,
+
+    pub average: YuvChroma,
 }
 
-impl fmt::Display for Color {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "r: {}, g: {}, b: {}", self.r, self.g, self.b)
+impl FrameInfo {
+    fn new() -> Self {
+        Self {
+            colors: Vec::new(),
+            frame_stride: 0,
+            pixel1_chroma: YuvChroma { u: 0, v: 0 },
+
+            reds: 0,
+            greens: 0,
+            blues: 0,
+            nones: 0,
+
+            average: YuvChroma { u: 0, v: 0 }
+        }
+    }
+
+    fn count(&self, color: ClosestColor) -> usize {
+        let mut count: usize = 0;
+        for c in self.colors.iter() {
+            if color == *c {
+                count += 1;
+            }
+        }
+
+        count
+    }
+
+    pub fn closest_color(&self) -> ClosestColor {
+        let mut largest = 0;
+        let mut largest_count = 0;
+        for (index, color_count) in [self.reds, self.greens, self.blues, self.nones].iter().enumerate() {
+            if *color_count > largest_count {
+                largest = index;
+                largest_count = *color_count
+            }
+        };
+
+        match largest {
+            0 => ClosestColor::Red,
+            1 => ClosestColor::Green,
+            2 => ClosestColor::Blue,
+            _ => ClosestColor::None
+        }
+    }
+
+    pub fn color_coordinate(&self) -> (u32, u32) {
+        let mut total = (0, 0);
+        for (index, color) in self.colors.iter().enumerate() {
+            let x = (index as u32) / self.frame_stride;
+            let y = (index as u32) % self.frame_stride;
+
+            if *color == self.closest_color() {
+            total = (total.0 + x, total.1 + y);
+            }
+        }
+
+        total
     }
 }
 
-impl Color {
-    fn abs_diff(&self, rhs: &Self) -> u32 {
-        let diff = (self.r.abs_diff(rhs.r) as u32).pow(2)
-            + (self.g.abs_diff(rhs.g) as u32).pow(2)
-            + (self.b.abs_diff(rhs.b) as u32).pow(2);
+fn get_info<'a>(image: YuvPackedImage<'a, u8>) -> FrameInfo {
 
-        diff
+    let mut info = FrameInfo::new();
+    info.frame_stride = image.yuy_stride;
+    info.pixel1_chroma = YuvChroma { u: image.yuy[1], v: image.yuy[3] };
+
+    let mut total: (usize, usize) = (0, 0);
+    for a in image.yuy.chunks(4) {
+        total = (total.0 + usize::from(a[1]), total.1 + usize::from(a[3]));
+
+        // Y, U, V are interleaved as Y0 U Y1 V
+        info.colors.push(ClosestColor::closest(a[0], a[1], a[3]));
+        info.colors.push(ClosestColor::closest(a[2], a[1], a[3]));
     }
+
+    info.average = YuvChroma::new(
+        u8::try_from(total.0 / (info.colors.len() / 2)).unwrap(),
+        u8::try_from(total.1 / (info.colors.len() / 2)).unwrap(),
+    );
+
+    for c in info.colors.iter() {
+        match c {
+            ClosestColor::Red => {
+                info.reds += 1
+            }
+            ClosestColor::Green => {
+                info.greens += 1
+            }
+            ClosestColor::Blue => {
+                info.blues += 1
+            }
+            ClosestColor::None => {
+                info.nones += 1
+            }
+        }
+    }
+
+    info    
 }
 
+fn print_frame_info(info: &FrameInfo) {
+    println!(
+        "
+        \x1B[2J\x1B[1;1H{} red pixels ({:.3}%), {} green pixels ({:.3}%), {} blue pixels ({:.3}%), and {} uncolored pixels ({:.3}%),
+        \nThe average is ({}, {})",
+        info.reds,   (info.reds as f32   / info.colors.len() as f32) * 100f32,
+        info.greens, (info.greens as f32 / info.colors.len() as f32) * 100f32,
+        info.blues,  (info.blues as f32  / info.colors.len() as f32) * 100f32,
+        info.nones,  (info.nones as f32  / info.colors.len() as f32) * 100f32,
+        
+        info.average.u, info.average.v
+    );
+
+    println!("The first pixel has a chroma of ({}, {})", info.pixel1_chroma.u, info.pixel1_chroma.v);
+}
 pub struct CameraVideoStream<'stream> {
     device: Device,
     stream: Stream<'stream>,
@@ -115,26 +246,6 @@ impl<'stream> CameraVideoStream<'stream> {
             _ => (),
         }
 
-        // match d.set_control(Control {
-        //     id: V4L2_CID_EXPOSURE_ABSOLUTE,
-        //     value: v4l::control::Value::Integer(625) // Where "1" would be 1/10000 of a second exposure time
-        // }) {
-        //     Err(e) => {
-        //         println!("Failed to set exposure time: {}", e);
-        //     }
-        //     _ => ()
-        // }
-
-        // match d.set_control(Control {
-        //     id: V4L2_CID_IRIS_ABSOLUTE,
-        //     value: v4l::control::Value::Integer(10) // Where "1" would be 1/10000 of a second exposure time
-        // }) {
-        //     Err(e) => {
-        //         println!("Failed to set aperture to wide open: {}", e);
-        //     }
-        //     _ => ()
-        // }
-
         let s = Stream::with_buffers(&mut d, Type::VideoCapture, 4)?;
 
         Ok(CameraVideoStream {
@@ -143,14 +254,8 @@ impl<'stream> CameraVideoStream<'stream> {
         })
     }
 
-    fn average_next_frame<'a>(&mut self) -> Color {
+    pub fn get_next_frame_info(&mut self) -> FrameInfo {
         let (buf, meta) = self.stream.next().unwrap();
-        println!(
-            "Buffer size: {}, seq: {}, timestamp: {}",
-            buf.len(),
-            meta.sequence,
-            meta.timestamp,
-        );
 
         let a = YuvPackedImage {
             yuy: buf,
@@ -159,46 +264,6 @@ impl<'stream> CameraVideoStream<'stream> {
             height: 720,
         };
 
-        let mut out = [0; 2764800];
-        yuv::yuyv422_to_rgb(
-            &a,
-            &mut out,
-            3840,
-            YuvRange::Full,
-            yuv::YuvStandardMatrix::Bt709,
-        )
-        .unwrap();
-
-        // Average the frames
-        let mut r: u64 = 0;
-        let mut g: u64 = 0;
-        let mut b: u64 = 0;
-
-        for (index, size) in out.iter().enumerate() {
-            match index % 3 {
-                0 => r += *size as u64,
-                1 => g += *size as u64,
-                2 => b += *size as u64,
-                _ => (),
-            }
-        }
-
-        // Can be unwrapped because the average will never be > u8::MAX
-        let channel_pixels = out.len() as u64 / 3;
-        Color {
-            r: (r / channel_pixels).try_into().unwrap(),
-            g: (g / channel_pixels).try_into().unwrap(),
-            b: (b / channel_pixels).try_into().unwrap(),
-        }
-    }
-
-    pub fn get_next_frame_closest_color(&mut self) {
-        let average_color = self.average_next_frame();
-
-        println!(
-            "The closest color to {} is {}",
-            &average_color,
-            ClosestColor::closest(&average_color)
-        )
+        get_info(a)
     }
 }

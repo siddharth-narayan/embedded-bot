@@ -1,8 +1,9 @@
-use std::{thread::sleep, time::Duration};
+use std::{thread::sleep, time::{Duration, SystemTime}};
 
-use crate::{camera::CameraVideoStream, control::{Direction, Robot}};
+use crate::{camera::{CameraVideoStream, ClosestColor}, control::{Direction, Robot}};
 
 mod control;
+mod actions;
 mod camera;
 
 fn main() {
@@ -15,8 +16,7 @@ fn main() {
         }
     };
 
-    _ = robot.test();
-    return;
+    // _ = robot.test();
 
     let mut camera_stream = match CameraVideoStream::new() {
         Ok(s) => s,
@@ -26,8 +26,41 @@ fn main() {
         }
     };
 
+    // Actions
+
+    robot.startup_action();
+    
+    let mut last_action_time = SystemTime::UNIX_EPOCH;
     loop {
-        camera_stream.get_next_frame_closest_color();
-        sleep(Duration::from_millis(500));
+        let info = camera_stream.get_next_frame_info();
+        let closest_color = info.closest_color();
+
+        let time_since_last_action = last_action_time.elapsed().unwrap();
+
+        match closest_color {
+            ClosestColor::Red => {
+                if time_since_last_action > Duration::from_millis(2000) {
+                    last_action_time = SystemTime::now();
+                    robot.red_action()
+                }
+            }
+
+            ClosestColor::Green => {
+                if time_since_last_action > Duration::from_millis(50) {
+                    last_action_time = SystemTime::now();
+                    robot.green_action(info.color_coordinate())
+                }
+            }
+
+            ClosestColor::Blue => {
+                if time_since_last_action > Duration::from_millis(2000) {
+                    last_action_time = SystemTime::now();
+                    robot.blue_action()
+                }
+            }
+
+            ClosestColor::None => ()
+        }
+        sleep(Duration::from_millis(16));
     }
 }
