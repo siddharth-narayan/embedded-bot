@@ -21,7 +21,7 @@ fn main() {
         }
     };
 
-    _ = robot.test();
+    // _ = robot.test();
 
     let mut camera_stream = match CameraVideoStream::new() {
         Ok(s) => s,
@@ -38,6 +38,8 @@ fn main() {
     let mut last_action_time = SystemTime::UNIX_EPOCH;
     loop {
         let info = camera_stream.get_next_frame_info();
+        info.print();
+
         let closest_color = info.closest_color();
 
         let time_since_last_action = last_action_time.elapsed().unwrap();
@@ -66,6 +68,5 @@ fn main() {
 
             ClosestColor::None => (),
         }
-        sleep(Duration::from_millis(16));
     }
 }

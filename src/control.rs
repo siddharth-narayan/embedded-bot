@@ -45,7 +45,7 @@ impl Robot {
     }
 
     pub fn test(&mut self) -> ControlError<LinuxI2CError> {
-        // self.test_movement()?;
+        self.test_movement()?;
         self.test_servos()?;
         self.test_lights()?;
 

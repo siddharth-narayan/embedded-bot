@@ -52,9 +52,9 @@ impl ClosestColor {
             // ClosestColor::Red => YuvChroma::new(-32, 96),
             // ClosestColor::Green => YuvChroma::new(-64, -96),
             // ClosestColor::None => YuvChroma::new(0, 0),
-            ClosestColor::Blue => YuvChroma::new(167, 47),
-            ClosestColor::Red => YuvChroma::new(113, 150),
-            ClosestColor::Green => YuvChroma::new(106, 99),
+            ClosestColor::Blue => YuvChroma::new(239, 30),
+            ClosestColor::Red => YuvChroma::new(60, 210),
+            ClosestColor::Green => YuvChroma::new(87, 80),
             ClosestColor::None => YuvChroma::new(128, 128),
         }
     }
@@ -63,7 +63,7 @@ impl ClosestColor {
         let input: YuvChroma = YuvChroma::new(u, v);
 
         // Clip darker colors
-        if y < 128 {
+        if y < 32 {
             return ClosestColor::None;
         }
 
@@ -110,7 +110,8 @@ impl FrameInfo {
     fn new() -> Self {
         Self {
             colors: Vec::new(),
-            frame_stride: 0,
+            // For some weird divide-by-zero
+            frame_stride: 1920 * 2,
             pixel1_chroma: YuvChroma { u: 0, v: 0 },
 
             reds: 0,
@@ -174,7 +175,7 @@ impl FrameInfo {
     pub fn print(&self) {
         println!(
         "
-        \x1B[2J\x1B[1;1H{} red pixels ({:.3}%), {} green pixels ({:.3}%), {} blue pixels ({:.3}%), and {} uncolored pixels ({:.3}%),
+        \x1B[2J\x1B[1;1H\n\n{} red pixels ({:.3}%), {} green pixels ({:.3}%), {} blue pixels ({:.3}%), and {} uncolored pixels ({:.3}%),
         \nThe average is ({}, {})",
         self.reds,   (self.reds as f32   / self.colors.len() as f32) * 100f32,
         self.greens, (self.greens as f32 / self.colors.len() as f32) * 100f32,
@@ -228,8 +229,8 @@ impl<'stream> CameraVideoStream<'stream> {
 
         let image = YuvPackedImage {
             yuy: buf,
-            yuy_stride: self.format.stride,
-            width: self.format.height,
+            yuy_stride: 1920 * 2,
+            width: self.format.width,
             height: self.format.height,
         };
 
