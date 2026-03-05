@@ -62,11 +62,11 @@ fn main() {
             ClosestColor::Blue => {
                 if time_since_last_action > Duration::from_millis(2000) {
                     last_action_time = SystemTime::now();
-                    robot.blue_action()
+                    robot.blue_action(info.color_coordinate())
                 }
             }
 
-            ClosestColor::None => (),
+            ClosestColor::None => robot.idle_action(),
         }
     }
 }
