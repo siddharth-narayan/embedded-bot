@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     camera::{CameraVideoStream, ClosestColor},
-    control::{Direction, Robot},
+    control::{Robot},
 };
 
 mod actions;
@@ -21,7 +21,7 @@ fn main() {
         }
     };
 
-    // _ = robot.test();
+    _ = robot.test();
 
     let mut camera_stream = match CameraVideoStream::new() {
         Ok(s) => s,
