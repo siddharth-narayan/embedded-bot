@@ -31,4 +31,11 @@ impl Robot {
 
         Ok(())
     }
+
+    pub(super) fn test_servos(&mut self) -> ControlError<LinuxI2CError> {
+        self.move_servo(Servo::CameraPan, 70)?;
+        self.move_servo(Servo::CameraTilt, 70)?;
+
+        Ok(())
+    }
 }

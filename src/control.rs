@@ -45,45 +45,9 @@ impl Robot {
     }
 
     pub fn test(&mut self) -> ControlError<LinuxI2CError> {
-        self.move_servo(Servo::CameraPan, 70)?;
-        self.move_servo(Servo::CameraTilt, 70)?;
-
-        for light in 0u8..8 {
-            self.set_light(light, LightColor::new(255, 0, 0))?;
-            sleep(Duration::from_millis(100))
-        }
-
-        let test_speed = 255u8;
-        for motor in [
-            Motor::ForwardLeft,
-            Motor::ForwardRight,
-            Motor::BackwardLeft,
-            Motor::BackwardRight,
-        ] {
-            self.move_motor(motor, MotorDirection::Forward, test_speed)?;
-            sleep(Duration::from_millis(500));
-
-            self.move_motor(motor, MotorDirection::Reverse, test_speed)?;
-            sleep(Duration::from_millis(500));
-
-            self.stop()?;
-            sleep(Duration::from_millis(1000));
-        }
-
-        for direction in [
-            Direction::Forward,
-            Direction::Backward,
-            Direction::Left,
-            Direction::Right,
-        ] {
-            self.move_direction(direction, test_speed, Duration::from_millis(2000))?;
-        }
-
-        for rotation in [Rotation::Clockwise, Rotation::CounterClockwise] {
-            self.move_rotate(rotation, test_speed, Duration::from_millis(2000))?;
-        }
-
-        self.stop()?;
+        // self.test_movement()?;
+        self.test_servos()?;
+        self.test_lights()?;
 
         Ok(())
     }

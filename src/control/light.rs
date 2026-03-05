@@ -1,3 +1,5 @@
+use std::{thread::sleep, time::Duration};
+
 use i2cdev::linux::LinuxI2CError;
 
 use crate::control::{Register, Robot, ControlError};
@@ -30,6 +32,15 @@ impl Robot {
             Register::WQ2812BrightnessAlone as u8,
             &[light, color.r, color.g, color.b],
         )?;
+
+        Ok(())
+    }
+
+    pub(super) fn test_lights(&mut self) -> ControlError<LinuxI2CError> {
+        for light in 0u8..8 {
+            self.set_light(light, LightColor::new(255, 0, 0))?;
+            sleep(Duration::from_millis(100))
+        }
 
         Ok(())
     }

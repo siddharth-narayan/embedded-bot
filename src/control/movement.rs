@@ -2,7 +2,7 @@ use std::{thread::sleep, time::Duration};
 
 use i2cdev::linux::LinuxI2CError;
 
-use crate::control::{Register, Robot, ControlError};
+use crate::control::{ControlError, Register, Robot};
 
 #[repr(u8)]
 #[derive(Clone, Copy)]
@@ -154,6 +154,41 @@ impl Robot {
 
         self.stop()?;
 
+        Ok(())
+    }
+
+    pub(super) fn test_movement(&mut self) -> ControlError<LinuxI2CError> {
+        let test_speed = 255u8;
+        for motor in [
+            Motor::ForwardLeft,
+            Motor::ForwardRight,
+            Motor::BackwardLeft,
+            Motor::BackwardRight,
+        ] {
+            self.move_motor(motor, MotorDirection::Forward, test_speed)?;
+            sleep(Duration::from_millis(500));
+
+            self.move_motor(motor, MotorDirection::Reverse, test_speed)?;
+            sleep(Duration::from_millis(500));
+
+            self.stop()?;
+            sleep(Duration::from_millis(1000));
+        }
+
+        for direction in [
+            Direction::Forward,
+            Direction::Backward,
+            Direction::Left,
+            Direction::Right,
+        ] {
+            self.move_direction(direction, test_speed, Duration::from_millis(2000))?;
+        }
+
+        for rotation in [Rotation::Clockwise, Rotation::CounterClockwise] {
+            self.move_rotate(rotation, test_speed, Duration::from_millis(2000))?;
+        }
+
+        self.stop()?;
         Ok(())
     }
 }
