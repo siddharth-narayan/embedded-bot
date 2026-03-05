@@ -1,13 +1,18 @@
-use std::{thread::sleep, time::{Duration, SystemTime}};
+use std::{
+    thread::sleep,
+    time::{Duration, SystemTime},
+};
 
-use crate::{camera::{CameraVideoStream, ClosestColor}, control::{Direction, Robot}};
+use crate::{
+    camera::{CameraVideoStream, ClosestColor},
+    control::{Direction, Robot},
+};
 
-mod control;
 mod actions;
 mod camera;
+mod control;
 
 fn main() {
-
     let mut robot = match Robot::new() {
         Ok(r) => r,
         Err(e) => {
@@ -29,7 +34,7 @@ fn main() {
     // Actions
 
     robot.startup_action();
-    
+
     let mut last_action_time = SystemTime::UNIX_EPOCH;
     loop {
         let info = camera_stream.get_next_frame_info();
@@ -59,7 +64,7 @@ fn main() {
                 }
             }
 
-            ClosestColor::None => ()
+            ClosestColor::None => (),
         }
         sleep(Duration::from_millis(16));
     }

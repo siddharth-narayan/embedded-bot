@@ -70,10 +70,15 @@ impl Robot {
 
     pub fn test(&mut self) -> ControlError<LinuxI2CError> {
         let test_speed = 255u8;
-        for motor in [Motor::ForwardLeft, Motor::ForwardRight, Motor::BackwardLeft, Motor::BackwardRight] {
+        for motor in [
+            Motor::ForwardLeft,
+            Motor::ForwardRight,
+            Motor::BackwardLeft,
+            Motor::BackwardRight,
+        ] {
             self.move_motor(motor, MotorDirection::Forward, test_speed)?;
             sleep(Duration::from_millis(500));
-            
+
             self.move_motor(motor, MotorDirection::Reverse, test_speed)?;
             sleep(Duration::from_millis(500));
 
@@ -81,7 +86,12 @@ impl Robot {
             sleep(Duration::from_millis(1000));
         }
 
-        for direction in [Direction::Forward, Direction::Backward, Direction::Left, Direction::Right] {
+        for direction in [
+            Direction::Forward,
+            Direction::Backward,
+            Direction::Left,
+            Direction::Right,
+        ] {
             self.move_direction(direction, test_speed, Duration::from_millis(2000))?;
         }
 
@@ -99,7 +109,12 @@ impl Robot {
             .smbus_write_i2c_block_data(register, values)
     }
 
-    fn move_motor(&mut self, motor: Motor, direction: MotorDirection, speed: u8) -> ControlError<LinuxI2CError> {
+    fn move_motor(
+        &mut self,
+        motor: Motor,
+        direction: MotorDirection,
+        speed: u8,
+    ) -> ControlError<LinuxI2CError> {
         self.write_block_data(
             Register::MotorControl as u8,
             &[motor as u8, direction as u8, speed],
@@ -116,27 +131,39 @@ impl Robot {
 
         self.write_block_data(
             Register::MotorControl as u8,
-            &[Motor::ForwardRight as u8, MotorDirection::Forward as u8, 0u8],
+            &[
+                Motor::ForwardRight as u8,
+                MotorDirection::Forward as u8,
+                0u8,
+            ],
         )?;
 
         self.write_block_data(
             Register::MotorControl as u8,
-            &[Motor::BackwardLeft as u8, MotorDirection::Forward as u8, 0u8],
+            &[
+                Motor::BackwardLeft as u8,
+                MotorDirection::Forward as u8,
+                0u8,
+            ],
         )?;
 
         self.write_block_data(
             Register::MotorControl as u8,
-            &[Motor::BackwardRight as u8, MotorDirection::Forward as u8, 0u8],
+            &[
+                Motor::BackwardRight as u8,
+                MotorDirection::Forward as u8,
+                0u8,
+            ],
         )?;
 
         Ok(())
     }
-    
+
     pub fn move_rotate(
         &mut self,
         direction: Rotation,
         speed: u8,
-        duration: Duration
+        duration: Duration,
     ) -> ControlError<LinuxI2CError> {
         match direction {
             Rotation::CounterClockwise => {
@@ -157,7 +184,7 @@ impl Robot {
         sleep(duration);
 
         self.stop()?;
-        
+
         Ok(())
     }
 
@@ -200,7 +227,7 @@ impl Robot {
         sleep(duration);
 
         self.stop()?;
-        
+
         Ok(())
     }
 }
