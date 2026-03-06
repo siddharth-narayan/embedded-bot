@@ -1,15 +1,11 @@
-use std::{thread::sleep, time::Duration};
-
 use i2cdev::{
     core::I2CDevice,
     linux::{LinuxI2CDevice, LinuxI2CError},
 };
 
-use crate::control::{light::LightColor, movement::{Direction, Motor, MotorDirection, Rotation}, servo::Servo};
-
 pub mod light;
-pub mod servo;
 pub mod movement;
+pub mod servo;
 
 pub type ControlError<E> = Result<(), E>;
 
@@ -20,12 +16,12 @@ const CONTROLLER_ADDRESS: u16 = 0x2B;
 enum Register {
     MotorControl = 0x01,
     ServoControl = 0x02,
-    WQ2812All = 0x03,
-    WQ2812Alone = 0x04,
-    IRSwitch = 0x05,
-    BeepSwitch = 0x06,
-    UltrasonicSwitch = 0x07,
-    WQ2812BrightnessAll = 0x08,
+    _WQ2812All = 0x03,
+    _WQ2812Alone = 0x04,
+    _IRSwitch = 0x05,
+    _BeepSwitch = 0x06,
+    _UltrasonicSwitch = 0x07,
+    _WQ2812BrightnessAll = 0x08,
     WQ2812BrightnessAlone = 0x09,
 }
 
@@ -52,8 +48,8 @@ impl Robot {
         Ok(())
     }
 
-    fn write_block_data(&mut self, register: u8, values: &[u8]) -> Result<(), LinuxI2CError> {
+    fn write_block_data(&mut self, register: Register, values: &[u8]) -> Result<(), LinuxI2CError> {
         self._internal_device
-            .smbus_write_i2c_block_data(register, values)
+            .smbus_write_i2c_block_data(register as u8, values)
     }
 }

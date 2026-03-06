@@ -23,7 +23,7 @@ impl Robot {
             angle = min(angle, 100);
         }
 
-        self.write_block_data(Register::ServoControl as u8, &[servo as u8, angle])?;
+        self.write_block_data(Register::ServoControl, &[servo as u8, angle])?;
 
         Ok(())
     }
@@ -41,7 +41,7 @@ impl Robot {
         }
 
         self.move_servo(Servo::CameraPan, 90)?;
-        self.move_servo(Servo::CameraTilt, 20);
+        self.move_servo(Servo::CameraTilt, 20)?;
         Ok(())
     }
 }

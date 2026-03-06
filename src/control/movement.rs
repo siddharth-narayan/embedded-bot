@@ -42,7 +42,7 @@ impl Robot {
         speed: u8,
     ) -> ControlError<LinuxI2CError> {
         self.write_block_data(
-            Register::MotorControl as u8,
+            Register::MotorControl,
             &[motor as u8, direction as u8, speed],
         )?;
 
@@ -51,12 +51,12 @@ impl Robot {
 
     pub fn stop(&mut self) -> ControlError<LinuxI2CError> {
         self.write_block_data(
-            Register::MotorControl as u8,
+            Register::MotorControl,
             &[Motor::ForwardLeft as u8, MotorDirection::Forward as u8, 0u8],
         )?;
 
         self.write_block_data(
-            Register::MotorControl as u8,
+            Register::MotorControl,
             &[
                 Motor::ForwardRight as u8,
                 MotorDirection::Forward as u8,
@@ -65,7 +65,7 @@ impl Robot {
         )?;
 
         self.write_block_data(
-            Register::MotorControl as u8,
+            Register::MotorControl,
             &[
                 Motor::BackwardLeft as u8,
                 MotorDirection::Forward as u8,
@@ -74,7 +74,7 @@ impl Robot {
         )?;
 
         self.write_block_data(
-            Register::MotorControl as u8,
+            Register::MotorControl,
             &[
                 Motor::BackwardRight as u8,
                 MotorDirection::Forward as u8,

@@ -107,25 +107,35 @@ pub struct FrameInfo {
 }
 
 impl FrameInfo {
-    fn new() -> Self {
+    fn new<'a>(image: YuvPackedImage<'a, u8>) -> Self {
+        let mut colors = Vec::new();
+        for a in image.yuy.chunks(4) {
+            // Y, U, V are interleaved as Y0 U Y1 V
+            colors.push(ClosestColor::closest(a[0], a[1], a[3]));
+            colors.push(ClosestColor::closest(a[2], a[1], a[3]));
+        }
+
         Self {
-            colors: Vec::new(),
-            // For some weird divide-by-zero
-            frame_stride: 1920 * 2,
-            pixel1_chroma: YuvChroma { u: 0, v: 0 },
+            frame_stride: image.yuy_stride,
+            pixel1_chroma: YuvChroma {
+                u: image.yuy[1],
+                v: image.yuy[3],
+            },
 
-            reds: 0,
-            greens: 0,
-            blues: 0,
-            nones: 0,
+            reds: Self::count(&colors, ClosestColor::Red),
+            greens: Self::count(&colors, ClosestColor::Green),
+            blues: Self::count(&colors, ClosestColor::Blue),
+            nones: Self::count(&colors, ClosestColor::None),
 
-            average: YuvChroma { u: 0, v: 0 },
+            colors: colors,
+            average: Self::average(image),
         }
     }
 
-    fn count(&self, color: ClosestColor) -> usize {
+    // Equivalent of ColorCounter
+    fn count(colors: &Vec<ClosestColor>, color: ClosestColor) -> usize {
         let mut count: usize = 0;
-        for c in self.colors.iter() {
+        for c in colors {
             if color == *c {
                 count += 1;
             }
@@ -134,10 +144,23 @@ impl FrameInfo {
         count
     }
 
+    fn average<'a>(image: YuvPackedImage<'a, u8>) -> YuvChroma {
+        let mut total: (usize, usize) = (0, 0);
+
+        for a in image.yuy.chunks(4) {
+            total = (total.0 + usize::from(a[1]), total.1 + usize::from(a[3]));
+        }
+
+        YuvChroma::new(
+            u8::try_from(total.0 / (image.yuy.len() / 4)).unwrap(),
+            u8::try_from(total.1 / (image.yuy.len() / 4)).unwrap(),
+        )
+    }
+
     pub fn closest_color(&self) -> ClosestColor {
         let mut largest = 0;
         let mut largest_count = 0;
-        for (index, color_count) in [self.reds, self.greens, self.blues, self.nones]
+        for (index, color_count) in [self.reds, self.greens, self.blues, self.nones / 33]
             .iter()
             .enumerate()
         {
@@ -155,6 +178,7 @@ impl FrameInfo {
         }
     }
 
+    // Equivalent of ColorLocator
     pub fn color_coordinate(&self) -> (u32, u32) {
         let mut total = (0, 0);
         for (index, color) in self.colors.iter().enumerate() {
@@ -175,7 +199,7 @@ impl FrameInfo {
     pub fn print(&self) {
         println!(
         "
-        \x1B[2J\x1B[1;1H\n\n{} red pixels ({:.3}%), {} green pixels ({:.3}%), {} blue pixels ({:.3}%), and {} uncolored pixels ({:.3}%),
+        {} red pixels ({:.3}%), {} green pixels ({:.3}%), {} blue pixels ({:.3}%), and {} uncolored pixels ({:.3}%),
         \nThe average is ({}, {})",
         self.reds,   (self.reds as f32   / self.colors.len() as f32) * 100f32,
         self.greens, (self.greens as f32 / self.colors.len() as f32) * 100f32,
@@ -193,7 +217,7 @@ impl FrameInfo {
 }
 
 pub struct CameraVideoStream<'stream> {
-    device: Device,
+    _device: Device,
     stream: Stream<'stream>,
     format: Format,
 }
@@ -218,52 +242,22 @@ impl<'stream> CameraVideoStream<'stream> {
         let s = Stream::with_buffers(&mut d, Type::VideoCapture, 4)?;
 
         Ok(CameraVideoStream {
-            device: d,
+            _device: d,
             format: fmt,
             stream: s,
         })
     }
 
     pub fn get_next_frame_info(&mut self) -> FrameInfo {
-        let (buf, meta) = self.stream.next().unwrap();
+        let (buf, _meta) = self.stream.next().unwrap();
 
         let image = YuvPackedImage {
             yuy: buf,
-            yuy_stride: 1920 * 2,
+            yuy_stride: self.format.stride,
             width: self.format.width,
             height: self.format.height,
         };
 
-        let mut info = FrameInfo::new();
-        info.frame_stride = image.yuy_stride;
-        info.pixel1_chroma = YuvChroma {
-            u: image.yuy[1],
-            v: image.yuy[3],
-        };
-
-        let mut total: (usize, usize) = (0, 0);
-        for a in image.yuy.chunks(4) {
-            total = (total.0 + usize::from(a[1]), total.1 + usize::from(a[3]));
-
-            // Y, U, V are interleaved as Y0 U Y1 V
-            info.colors.push(ClosestColor::closest(a[0], a[1], a[3]));
-            info.colors.push(ClosestColor::closest(a[2], a[1], a[3]));
-        }
-
-        info.average = YuvChroma::new(
-            u8::try_from(total.0 / (info.colors.len() / 2)).unwrap(),
-            u8::try_from(total.1 / (info.colors.len() / 2)).unwrap(),
-        );
-
-        for c in info.colors.iter() {
-            match c {
-                ClosestColor::Red => info.reds += 1,
-                ClosestColor::Green => info.greens += 1,
-                ClosestColor::Blue => info.blues += 1,
-                ClosestColor::None => info.nones += 1,
-            }
-        }
-
-        info
+        FrameInfo::new(image)
     }
 }

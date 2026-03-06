@@ -1,11 +1,9 @@
-use std::{
-    thread::sleep,
-    time::{Duration, SystemTime},
-};
+use std::time::{Duration, SystemTime};
 
 use crate::{
+    actions::timer_check,
     camera::{CameraVideoStream, ClosestColor},
-    control::{Robot},
+    control::Robot,
 };
 
 mod actions;
@@ -13,6 +11,8 @@ mod camera;
 mod control;
 
 fn main() {
+    let test = std::env::args().any(|a| a == "--test");
+
     let mut robot = match Robot::new() {
         Ok(r) => r,
         Err(e) => {
@@ -21,7 +21,9 @@ fn main() {
         }
     };
 
-    // _ = robot.test();
+    if test {
+        _ = robot.test();
+    }
 
     let mut camera_stream = match CameraVideoStream::new() {
         Ok(s) => s,
@@ -35,10 +37,11 @@ fn main() {
 
     robot.startup_action();
 
+    let start_time = SystemTime::now();
     let mut last_action_time = SystemTime::UNIX_EPOCH;
     loop {
+        timer_check(start_time);
         let info = camera_stream.get_next_frame_info();
-        info.print();
 
         let closest_color = info.closest_color();
 
@@ -46,6 +49,8 @@ fn main() {
 
         match closest_color {
             ClosestColor::Red => {
+                info.print();
+
                 if time_since_last_action > Duration::from_millis(2000) {
                     last_action_time = SystemTime::now();
                     robot.red_action()
@@ -53,6 +58,8 @@ fn main() {
             }
 
             ClosestColor::Green => {
+                info.print();
+
                 if time_since_last_action > Duration::from_millis(50) {
                     last_action_time = SystemTime::now();
                     robot.green_action(info.color_coordinate())
@@ -60,6 +67,8 @@ fn main() {
             }
 
             ClosestColor::Blue => {
+                info.print();
+
                 if time_since_last_action > Duration::from_millis(2000) {
                     last_action_time = SystemTime::now();
                     robot.blue_action(info.color_coordinate())
