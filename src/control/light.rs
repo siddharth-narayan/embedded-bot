@@ -15,6 +15,18 @@ impl LightColor {
     pub fn new(r: u8, g: u8, b: u8) -> Self {
         LightColor { r: r, g: g, b: b }
     }
+
+    pub fn red() -> Self {
+        Self::new(255, 0, 0)
+    }
+
+    pub fn green() -> Self {
+        Self::new(0, 255, 0)
+    }
+
+    pub fn blue() -> Self {
+        Self::new(0, 0, 255)
+    }
 }
 
 impl Robot {

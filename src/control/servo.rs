@@ -41,7 +41,7 @@ impl Robot {
         }
 
         self.move_servo(Servo::CameraPan, 90)?;
-        self.move_servo(Servo::CameraTilt, 20)?;
+        self.move_servo(Servo::CameraTilt, 50)?;
         Ok(())
     }
 }

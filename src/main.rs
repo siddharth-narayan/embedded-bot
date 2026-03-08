@@ -8,6 +8,8 @@ use crate::{
     control::Robot,
 };
 
+use crate::control::light::LightColor;
+
 mod actions;
 mod camera;
 mod control;
@@ -42,17 +44,19 @@ fn main() {
     let start_time = SystemTime::now();
     let mut last_action_time = SystemTime::UNIX_EPOCH;
     loop {
-        timer_check(start_time);
-        let info = camera_stream.get_next_frame();
+        // timer_check(start_time);
+        let frame = camera_stream.get_next_frame();
 
-        let closest_color = info.closest_color();
+        let closest_color = frame.closest_color();
 
         let time_since_last_action = last_action_time.elapsed().unwrap();
 
         match closest_color {
             ClosestColor::Red => {
-                info.print();
+                frame.print();
 
+                _ = robot.set_all_lights(LightColor::red());
+                
                 if time_since_last_action > Duration::from_millis(2000) {
                     last_action_time = SystemTime::now();
                     robot.red_action()
@@ -60,24 +64,30 @@ fn main() {
             }
 
             ClosestColor::Green => {
-                info.print();
+                frame.print();
+
+                _ = robot.set_all_lights(LightColor::green());
 
                 if time_since_last_action > Duration::from_millis(50) {
                     last_action_time = SystemTime::now();
-                    robot.green_action(info.color_coordinate())
+                    robot.green_action(frame.color_coordinate(), frame.dimensions())
                 }
             }
 
             ClosestColor::Blue => {
-                info.print();
+                frame.print();
 
-                if time_since_last_action > Duration::from_millis(2000) {
+                _ = robot.set_all_lights(LightColor::blue());
+
+                if time_since_last_action > Duration::from_millis(50) {
                     last_action_time = SystemTime::now();
-                    robot.blue_action(info.color_coordinate())
+                    robot.blue_action(frame.color_coordinate(), frame.dimensions())
                 }
             }
 
             ClosestColor::None => {
+                // _ = robot.set_all_lights(LightColor::blue());
+
                 robot.idle_action()
             }
         }

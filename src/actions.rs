@@ -4,7 +4,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::control::{Robot, light::LightColor, movement::Rotation};
+use crate::control::{Robot, light::LightColor, movement::{Direction, Rotation}};
 
 pub fn timer_check(start_time: SystemTime) {
     if let Ok(duration) = start_time.elapsed() {
@@ -32,26 +32,38 @@ impl Robot {
         let _ = self.move_rotate(Rotation::Clockwise, 255, Duration::from_millis(500));
     }
 
-    pub fn green_action(&mut self, coordinate: (usize, usize)) {
+    pub fn green_action(&mut self, coordinate: (usize, usize), dimensions: (usize, usize)) {
+
+        // The camera seems to be flipped, so use the Y axis as horizontal direction
+        let direction = if coordinate.1 < (dimensions.1 / 2) {
+            Rotation::CounterClockwise
+        } else {
+            Rotation::Clockwise
+        };
+
         println!(
-            "Executing green action with coordinate ({}, {})",
-            coordinate.0, coordinate.1
+            "Executing blue action -- coordinate: ({}, {}), direction: {}",
+            coordinate.0, coordinate.1, direction
         );
 
-        _ = self.set_all_lights(LightColor::new(0, 255, 0));
-        sleep(Duration::from_millis(250));
-        _ = self.set_all_lights(LightColor::new(0, 0, 0));
+        _ = self.move_rotate(direction, 60, Duration::from_millis(250));
+        
     }
 
-    pub fn blue_action(&mut self, coordinate: (usize, usize)) {
+    pub fn blue_action(&mut self, coordinate: (usize, usize), dimensions: (usize, usize)) {
+
+        // The camera seems to be flipped, so use the Y axis as horizontal direction
+        let direction = if coordinate.1 < (dimensions.1 / 2) {
+            Direction::Left
+        } else {
+            Direction::Right
+        };
+
         println!(
-            "Executing blue action with coordinate ({}, {})",
-            coordinate.0, coordinate.1
+            "Executing blue action -- coordinate: ({}, {}), direction: {}",
+            coordinate.0, coordinate.1, direction
         );
 
-        // let direction = coordinate_to_direction();
-
-        let direction = crate::control::movement::Direction::Left;
-        _ = self.move_direction(direction, 255, Duration::from_millis(100));
+        _ = self.move_direction(direction, 60, Duration::from_millis(250));
     }
 }

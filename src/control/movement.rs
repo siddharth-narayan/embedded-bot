@@ -1,4 +1,4 @@
-use std::{thread::sleep, time::Duration};
+use std::{thread::sleep, time::Duration, fmt};
 
 use i2cdev::linux::LinuxI2CError;
 
@@ -28,10 +28,30 @@ pub enum Direction {
     Right,
 }
 
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Direction::Left => write!(f, "Left"),
+            Direction::Right => write!(f, "Right"),
+            Direction::Forward => write!(f, "Forward"),
+            Direction::Backward => write!(f, "Backward"),
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub enum Rotation {
     Clockwise,
     CounterClockwise,
+}
+
+impl fmt::Display for Rotation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Rotation::Clockwise => write!(f, "Clockwise"),
+            Rotation::CounterClockwise => write!(f, "CounterClockwise"),
+        }
+    }
 }
 
 impl Robot {

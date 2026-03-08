@@ -155,6 +155,10 @@ impl Frame {
         )
     }
 
+    pub fn dimensions(&self) -> (usize, usize) {
+        self.dimensions
+    }
+
     pub fn closest_color(&self) -> ClosestColor {
         let mut largest = 0;
         let mut largest_count = 0;
@@ -179,16 +183,18 @@ impl Frame {
     // Equivalent of ColorLocator
     pub fn color_coordinate(&self) -> (usize, usize) {
         let mut total = (0, 0);
+        let mut matched_count = 0;
         for (index, color) in self.colors.iter().enumerate() {
             let x = index / self.dimensions.0;
             let y = index % self.dimensions.0;
 
             if *color == self.closest_color() {
+                matched_count += 1;
                 total = (total.0 + x, total.1 + y);
             }
         }
 
-        (total.0 / self.colors.len(), total.1 / self.colors.len())
+        (total.0 / matched_count, total.1 / matched_count)
     }
 
     pub fn print(&self) {
@@ -220,7 +226,7 @@ impl<'stream> CameraVideoStream<'stream> {
     pub fn new() -> std::io::Result<Self> {
         let mut d = Device::new(0)?;
 
-        let fmt = Format::new(1920, 1080, FourCC::new(b"MJPG"));
+        let fmt = Format::new(1280, 720, FourCC::new(b"MJPG"));
         println!("Format in use:\n{}", d.set_format(&fmt)?);
 
         match d.set_control(Control {
