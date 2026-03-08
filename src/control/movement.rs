@@ -186,10 +186,10 @@ impl Robot {
             Motor::BackwardRight,
         ] {
             self.move_motor(motor, MotorDirection::Forward, test_speed)?;
-            sleep(Duration::from_millis(500));
+            sleep(Duration::from_millis(550));
 
             self.move_motor(motor, MotorDirection::Reverse, test_speed)?;
-            sleep(Duration::from_millis(500));
+            sleep(Duration::from_millis(550));
 
             self.stop()?;
             sleep(Duration::from_millis(1000));
@@ -201,11 +201,11 @@ impl Robot {
             Direction::Left,
             Direction::Right,
         ] {
-            self.move_direction(direction, test_speed, Duration::from_millis(2000))?;
+            self.move_direction(direction, test_speed, Duration::from_millis(1000))?;
         }
 
         for rotation in [Rotation::Clockwise, Rotation::CounterClockwise] {
-            self.move_rotate(rotation, test_speed, Duration::from_millis(2000))?;
+            self.move_rotate(rotation, test_speed, Duration::from_millis(1000))?;
         }
 
         self.stop()?;

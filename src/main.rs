@@ -27,6 +27,7 @@ fn main() {
 
     if test {
         _ = robot.test();
+        std::process::exit(0)
     }
 
     let mut camera_stream = match CameraVideoStream::new() {
@@ -86,7 +87,7 @@ fn main() {
             }
 
             ClosestColor::None => {
-                // _ = robot.set_all_lights(LightColor::blue());
+                _ = robot.set_all_lights(LightColor::white());
 
                 robot.idle_action()
             }

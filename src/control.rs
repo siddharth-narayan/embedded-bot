@@ -17,7 +17,7 @@ enum Register {
     MotorControl = 0x01,
     ServoControl = 0x02,
     _WQ2812All = 0x03,
-    _WQ2812Alone = 0x04,
+    WQ2812Alone = 0x04,
     _IRSwitch = 0x05,
     _BeepSwitch = 0x06,
     _UltrasonicSwitch = 0x07,
