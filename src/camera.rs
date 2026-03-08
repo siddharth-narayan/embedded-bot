@@ -8,7 +8,11 @@ use v4l::v4l_sys::V4L2_CID_EXPOSURE_AUTO;
 use v4l::video::Capture;
 use v4l::{Control, Device, Format, FourCC};
 
-use yuv::YuvPackedImage;
+use zune_jpeg::JpegDecoder;
+
+use zune_jpeg::zune_core::bytestream::ZCursor;
+use zune_jpeg::zune_core::colorspace::ColorSpace;
+use zune_jpeg::zune_core::options::DecoderOptions;
 
 #[derive(Clone)]
 pub struct YuvChroma {
@@ -92,43 +96,37 @@ impl fmt::Display for ClosestColor {
     }
 }
 
-pub struct FrameInfo {
-    pub colors: Vec<ClosestColor>,
-    pub frame_stride: u32,
+pub struct Frame {
+    frame: Vec<u8>,
+    colors: Vec<ClosestColor>,
+    dimensions: (usize, usize),
 
-    pub pixel1_chroma: YuvChroma,
+    reds: usize,
+    greens: usize,
+    blues: usize,
+    nones: usize,
 
-    pub reds: usize,
-    pub greens: usize,
-    pub blues: usize,
-    pub nones: usize,
-
-    pub average: YuvChroma,
+    average: (u8, u8),
 }
 
-impl FrameInfo {
-    fn new<'a>(image: YuvPackedImage<'a, u8>) -> Self {
+impl Frame {
+    fn new<'a>(image: Vec<u8>, dimensions: (usize, usize)) -> Self {
         let mut colors = Vec::new();
-        for a in image.yuy.chunks(4) {
-            // Y, U, V are interleaved as Y0 U Y1 V
-            colors.push(ClosestColor::closest(a[0], a[1], a[3]));
-            colors.push(ClosestColor::closest(a[2], a[1], a[3]));
+        for a in image.chunks(3) {
+            colors.push(ClosestColor::closest(a[0], a[1], a[2]));
         }
 
         Self {
-            frame_stride: image.yuy_stride,
-            pixel1_chroma: YuvChroma {
-                u: image.yuy[1],
-                v: image.yuy[3],
-            },
+            dimensions: dimensions,
 
             reds: Self::count(&colors, ClosestColor::Red),
             greens: Self::count(&colors, ClosestColor::Green),
             blues: Self::count(&colors, ClosestColor::Blue),
             nones: Self::count(&colors, ClosestColor::None),
 
+            average: Self::average(&image),
             colors: colors,
-            average: Self::average(image),
+            frame: image,
         }
     }
 
@@ -144,16 +142,16 @@ impl FrameInfo {
         count
     }
 
-    fn average<'a>(image: YuvPackedImage<'a, u8>) -> YuvChroma {
+    fn average<'a>(image: &Vec<u8>) -> (u8, u8) {
         let mut total: (usize, usize) = (0, 0);
 
-        for a in image.yuy.chunks(4) {
-            total = (total.0 + usize::from(a[1]), total.1 + usize::from(a[3]));
+        for a in image.chunks(3) {
+            total = (total.0 + usize::from(a[1]), total.1 + usize::from(a[2]));
         }
 
-        YuvChroma::new(
-            u8::try_from(total.0 / (image.yuy.len() / 4)).unwrap(),
-            u8::try_from(total.1 / (image.yuy.len() / 4)).unwrap(),
+        (
+            u8::try_from(total.0 / (image.len() / 3)).unwrap(),
+            u8::try_from(total.1 / (image.len() / 3)).unwrap(),
         )
     }
 
@@ -179,21 +177,18 @@ impl FrameInfo {
     }
 
     // Equivalent of ColorLocator
-    pub fn color_coordinate(&self) -> (u32, u32) {
+    pub fn color_coordinate(&self) -> (usize, usize) {
         let mut total = (0, 0);
         for (index, color) in self.colors.iter().enumerate() {
-            let x = (index as u32) / self.frame_stride;
-            let y = (index as u32) % self.frame_stride;
+            let x = index / self.dimensions.0;
+            let y = index % self.dimensions.0;
 
             if *color == self.closest_color() {
                 total = (total.0 + x, total.1 + y);
             }
         }
 
-        (
-            total.0 / self.colors.len() as u32,
-            total.1 / self.colors.len() as u32,
-        )
+        (total.0 / self.colors.len(), total.1 / self.colors.len())
     }
 
     pub fn print(&self) {
@@ -206,12 +201,12 @@ impl FrameInfo {
         self.blues,  (self.blues as f32  / self.colors.len() as f32) * 100f32,
         self.nones,  (self.nones as f32  / self.colors.len() as f32) * 100f32,
 
-        self.average.u, self.average.v
+        self.average.0, self.average.1
     );
 
         println!(
             "The first pixel has a chroma of ({}, {})",
-            self.pixel1_chroma.u, self.pixel1_chroma.v
+            self.frame[1], self.frame[2]
         );
     }
 }
@@ -219,14 +214,13 @@ impl FrameInfo {
 pub struct CameraVideoStream<'stream> {
     _device: Device,
     stream: Stream<'stream>,
-    format: Format,
 }
 
 impl<'stream> CameraVideoStream<'stream> {
     pub fn new() -> std::io::Result<Self> {
         let mut d = Device::new(0)?;
 
-        let fmt = Format::new(1920, 1080, FourCC::new(b"YUYV"));
+        let fmt = Format::new(1920, 1080, FourCC::new(b"MJPG"));
         println!("Format in use:\n{}", d.set_format(&fmt)?);
 
         match d.set_control(Control {
@@ -243,21 +237,21 @@ impl<'stream> CameraVideoStream<'stream> {
 
         Ok(CameraVideoStream {
             _device: d,
-            format: fmt,
             stream: s,
         })
     }
 
-    pub fn get_next_frame_info(&mut self) -> FrameInfo {
+    pub fn get_next_frame(&mut self) -> Frame {
         let (buf, _meta) = self.stream.next().unwrap();
 
-        let image = YuvPackedImage {
-            yuy: buf,
-            yuy_stride: self.format.stride,
-            width: self.format.width,
-            height: self.format.height,
-        };
+        let mut decoder = JpegDecoder::new(ZCursor::new(buf));
+        decoder.set_options(
+            DecoderOptions::default()
+                .jpeg_set_out_colorspace(ColorSpace::YCbCr),
+        );
+        
+        let image = decoder.decode().unwrap();
 
-        FrameInfo::new(image)
+        Frame::new(image, decoder.dimensions().unwrap())
     }
 }

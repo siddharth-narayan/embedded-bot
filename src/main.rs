@@ -1,4 +1,6 @@
-use std::time::{Duration, SystemTime};
+use std::{
+    time::{Duration, SystemTime},
+};
 
 use crate::{
     actions::timer_check,
@@ -41,7 +43,7 @@ fn main() {
     let mut last_action_time = SystemTime::UNIX_EPOCH;
     loop {
         timer_check(start_time);
-        let info = camera_stream.get_next_frame_info();
+        let info = camera_stream.get_next_frame();
 
         let closest_color = info.closest_color();
 
@@ -75,7 +77,9 @@ fn main() {
                 }
             }
 
-            ClosestColor::None => robot.idle_action(),
+            ClosestColor::None => {
+                robot.idle_action()
+            }
         }
     }
 }

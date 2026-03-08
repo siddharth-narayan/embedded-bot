@@ -9,6 +9,7 @@ use crate::control::{Robot, light::LightColor, movement::Rotation};
 pub fn timer_check(start_time: SystemTime) {
     if let Ok(duration) = start_time.elapsed() {
         if duration > Duration::from_secs(45) {
+            println!("Program has continued for more than 45 seconds, exiting");
             exit(0)
         }
     }
@@ -31,7 +32,7 @@ impl Robot {
         let _ = self.move_rotate(Rotation::Clockwise, 255, Duration::from_millis(500));
     }
 
-    pub fn green_action(&mut self, coordinate: (u32, u32)) {
+    pub fn green_action(&mut self, coordinate: (usize, usize)) {
         println!(
             "Executing green action with coordinate ({}, {})",
             coordinate.0, coordinate.1
@@ -42,7 +43,7 @@ impl Robot {
         _ = self.set_all_lights(LightColor::new(0, 0, 0));
     }
 
-    pub fn blue_action(&mut self, coordinate: (u32, u32)) {
+    pub fn blue_action(&mut self, coordinate: (usize, usize)) {
         println!(
             "Executing blue action with coordinate ({}, {})",
             coordinate.0, coordinate.1
