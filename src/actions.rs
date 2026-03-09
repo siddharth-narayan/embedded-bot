@@ -34,7 +34,7 @@ impl Robot {
     pub fn green_action(&mut self, coordinate: (usize, usize), dimensions: (usize, usize)) {
 
         // The camera seems to be flipped, so use the Y axis as horizontal direction
-        let direction = if coordinate.1 < (dimensions.1 / 2) {
+        let direction = if coordinate.0 < (dimensions.0 / 2) {
             Rotation::CounterClockwise
         } else {
             Rotation::Clockwise
@@ -52,7 +52,7 @@ impl Robot {
     pub fn blue_action(&mut self, coordinate: (usize, usize), dimensions: (usize, usize)) {
 
         // The camera seems to be flipped, so use the Y axis as horizontal direction
-        let direction = if coordinate.1 < (dimensions.1 / 2) {
+        let direction = if coordinate.0 < (dimensions.0 / 2) {
             Direction::Left
         } else {
             Direction::Right

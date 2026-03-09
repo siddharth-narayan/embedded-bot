@@ -16,6 +16,7 @@ mod control;
 
 fn main() {
     let test = std::env::args().any(|a| a == "--test");
+    let debug = std::env::args().any(|a| a == "--debug");
 
     let mut robot = match Robot::new() {
         Ok(r) => r,
@@ -87,6 +88,10 @@ fn main() {
             }
 
             ClosestColor::None => {
+                if debug {
+                    frame.print();
+                }
+                
                 _ = robot.set_all_lights(LightColor::white());
 
                 robot.idle_action()

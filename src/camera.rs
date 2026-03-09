@@ -69,7 +69,7 @@ impl ClosestColor {
         let input: YuvChroma = YuvChroma::new(u, v);
 
         // Clip darker colors
-        if y < 32 {
+        if y < 16 {
             return ClosestColor::None;
         }
 
@@ -171,7 +171,7 @@ impl Frame {
     pub fn closest_color(&self) -> ClosestColor {
         let mut largest = 0;
         let mut largest_count = 0;
-        for (index, color_count) in [self.reds, self.greens, self.blues, self.nones / 33]
+        for (index, color_count) in [self.reds, self.greens, self.blues, self.nones / 100]
             .iter()
             .enumerate()
         {
@@ -194,8 +194,8 @@ impl Frame {
         let mut total = (0, 0);
         let mut matched_count = 0;
         for (index, color) in self.colors.iter().enumerate() {
-            let x = index / self.dimensions.0;
-            let y = index % self.dimensions.0;
+            let x = index % self.dimensions.0;
+            let y = index / self.dimensions.0;
 
             if *color == self.closest_color() {
                 matched_count += 1;
@@ -207,12 +207,17 @@ impl Frame {
     }
 
     pub fn print(&self) {
-        println!("This frame has dimensions ({}, {}), decoded in {}ms", self.dimensions.0, self.dimensions.1, self.decode_time.as_millis());
-
-        println!("The closest color is {}, with coordinate ({}, {})", self.closest_color(), self.color_coordinate().0, self.color_coordinate().1);
-        println!("The average chroma is ({}, {})", self.average.0, self.average.1);
         println!(
-            "{} red pixels ({:.3}%), {} green pixels ({:.3}%), {} blue pixels ({:.3}%), and {} uncolored pixels ({:.3}%),",
+            "\x1B[2J\x1B[1;1H\n\
+            This frame has dimensions ({}, {}), decoded in {}ms\n\
+            The closest color is {}, with coordinate ({}, {})\n\
+            The average chroma is ({}, {})\n\
+            {} red pixels ({:.3}%), {} green pixels ({:.3}%), {} blue pixels ({:.3}%), and {} uncolored pixels ({:.3}%)",
+
+            
+            self.dimensions.0, self.dimensions.1, self.decode_time.as_millis(),
+            self.closest_color(), self.color_coordinate().0, self.color_coordinate().1,
+            self.average.0, self.average.1,
             self.reds,   (self.reds as f32   / self.colors.len() as f32) * 100f32,
             self.greens, (self.greens as f32 / self.colors.len() as f32) * 100f32,
             self.blues,  (self.blues as f32  / self.colors.len() as f32) * 100f32,
