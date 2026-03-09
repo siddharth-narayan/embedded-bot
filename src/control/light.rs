@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{thread::sleep, time::Duration};
 
 use i2cdev::linux::LinuxI2CError;

@@ -45,7 +45,7 @@ fn main() {
     let start_time = SystemTime::now();
     let mut last_action_time = SystemTime::UNIX_EPOCH;
     loop {
-        // timer_check(start_time);
+        timer_check(start_time);
         let frame = camera_stream.get_next_frame();
 
         let closest_color = frame.closest_color();

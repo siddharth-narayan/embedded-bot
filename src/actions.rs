@@ -1,10 +1,9 @@
 use std::{
     process::exit,
-    thread::sleep,
     time::{Duration, SystemTime},
 };
 
-use crate::control::{Robot, light::LightColor, movement::{Direction, Rotation}};
+use crate::control::{Robot, movement::{Direction, Rotation}};
 
 pub fn timer_check(start_time: SystemTime) {
     if let Ok(duration) = start_time.elapsed() {
