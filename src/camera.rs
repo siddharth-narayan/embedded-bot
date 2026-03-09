@@ -1,4 +1,6 @@
 use core::fmt;
+use std::io::{BufRead, Seek};
+use std::time::{Duration, SystemTime};
 use std::u32;
 
 use v4l::buffer::Type;
@@ -97,9 +99,11 @@ impl fmt::Display for ClosestColor {
 }
 
 pub struct Frame {
-    frame: Vec<u8>,
-    colors: Vec<ClosestColor>,
+    _frame: Vec<u8>,
+    decode_time: Duration,
     dimensions: (usize, usize),
+
+    colors: Vec<ClosestColor>,
 
     reds: usize,
     greens: usize,
@@ -110,14 +114,19 @@ pub struct Frame {
 }
 
 impl Frame {
-    fn new<'a>(image: Vec<u8>, dimensions: (usize, usize)) -> Self {
+    fn new<T: BufRead + Seek>(mut decoder: JpegDecoder<T>) -> Self {
+        let now = SystemTime::now();
+        let image = decoder.decode().expect("Failed to decode image");
+        let decode_time = now.elapsed().unwrap();
+
         let mut colors = Vec::new();
         for a in image.chunks(3) {
             colors.push(ClosestColor::closest(a[0], a[1], a[2]));
         }
 
         Self {
-            dimensions: dimensions,
+            decode_time: decode_time,
+            dimensions: decoder.dimensions().unwrap(),
 
             reds: Self::count(&colors, ClosestColor::Red),
             greens: Self::count(&colors, ClosestColor::Green),
@@ -126,7 +135,7 @@ impl Frame {
 
             average: Self::average(&image),
             colors: colors,
-            frame: image,
+            _frame: image,
         }
     }
 
@@ -198,21 +207,16 @@ impl Frame {
     }
 
     pub fn print(&self) {
-        println!(
-        "
-        {} red pixels ({:.3}%), {} green pixels ({:.3}%), {} blue pixels ({:.3}%), and {} uncolored pixels ({:.3}%),
-        \nThe average is ({}, {})",
-        self.reds,   (self.reds as f32   / self.colors.len() as f32) * 100f32,
-        self.greens, (self.greens as f32 / self.colors.len() as f32) * 100f32,
-        self.blues,  (self.blues as f32  / self.colors.len() as f32) * 100f32,
-        self.nones,  (self.nones as f32  / self.colors.len() as f32) * 100f32,
+        println!("This frame has dimensions ({}, {}), decoded in {}ms", self.dimensions.0, self.dimensions.1, self.decode_time.as_millis());
 
-        self.average.0, self.average.1
-    );
-
+        println!("The closest color is {}, with coordinate ({}, {})", self.closest_color(), self.color_coordinate().0, self.color_coordinate().1);
+        println!("The average chroma is ({}, {})", self.average.0, self.average.1);
         println!(
-            "The first pixel has a chroma of ({}, {})",
-            self.frame[1], self.frame[2]
+            "{} red pixels ({:.3}%), {} green pixels ({:.3}%), {} blue pixels ({:.3}%), and {} uncolored pixels ({:.3}%),",
+            self.reds,   (self.reds as f32   / self.colors.len() as f32) * 100f32,
+            self.greens, (self.greens as f32 / self.colors.len() as f32) * 100f32,
+            self.blues,  (self.blues as f32  / self.colors.len() as f32) * 100f32,
+            self.nones,  (self.nones as f32  / self.colors.len() as f32) * 100f32
         );
     }
 }
@@ -239,7 +243,7 @@ impl<'stream> CameraVideoStream<'stream> {
             _ => (),
         }
 
-        let s = Stream::with_buffers(&mut d, Type::VideoCapture, 4)?;
+        let s = Stream::with_buffers(&mut d, Type::VideoCapture, 2)?;
 
         Ok(CameraVideoStream {
             _device: d,
@@ -256,8 +260,6 @@ impl<'stream> CameraVideoStream<'stream> {
                 .jpeg_set_out_colorspace(ColorSpace::YCbCr),
         );
         
-        let image = decoder.decode().unwrap();
-
-        Frame::new(image, decoder.dimensions().unwrap())
+        Frame::new( decoder)
     }
 }
