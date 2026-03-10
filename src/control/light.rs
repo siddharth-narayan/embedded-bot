@@ -47,20 +47,6 @@ impl LightColor {
 }
 
 impl Robot {
-    pub fn set_light_on_off(&mut self, light: u8, status: LightStatus) -> ControlError<LinuxI2CError> {
-        if light > 8 {
-            return Ok(());
-        }
-
-        self.write_block_data(
-            Register::WQ2812Alone,
-            &[light, status as u8, 0],
-        )?;
-
-        Ok(())
-    }
-
-
     pub fn set_light(&mut self, light: u8, color: LightColor) -> ControlError<LinuxI2CError> {
         if light > 8 {
             return Ok(());

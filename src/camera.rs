@@ -58,9 +58,9 @@ impl ClosestColor {
             // ClosestColor::Red => YuvChroma::new(-32, 96),
             // ClosestColor::Green => YuvChroma::new(-64, -96),
             // ClosestColor::None => YuvChroma::new(0, 0),
-            ClosestColor::Blue => YuvChroma::new(239, 30),
+            ClosestColor::Blue => YuvChroma::new(136, 80),
             ClosestColor::Red => YuvChroma::new(60, 210),
-            ClosestColor::Green => YuvChroma::new(87, 80),
+            ClosestColor::Green => YuvChroma::new(109, 105),
             ClosestColor::None => YuvChroma::new(128, 128),
         }
     }
@@ -213,15 +213,22 @@ impl Frame {
             The closest color is {}, with coordinate ({}, {})\n\
             The average chroma is ({}, {})\n\
             {} red pixels ({:.3}%), {} green pixels ({:.3}%), {} blue pixels ({:.3}%), and {} uncolored pixels ({:.3}%)",
-
-            
-            self.dimensions.0, self.dimensions.1, self.decode_time.as_millis(),
-            self.closest_color(), self.color_coordinate().0, self.color_coordinate().1,
-            self.average.0, self.average.1,
-            self.reds,   (self.reds as f32   / self.colors.len() as f32) * 100f32,
-            self.greens, (self.greens as f32 / self.colors.len() as f32) * 100f32,
-            self.blues,  (self.blues as f32  / self.colors.len() as f32) * 100f32,
-            self.nones,  (self.nones as f32  / self.colors.len() as f32) * 100f32
+            self.dimensions.0,
+            self.dimensions.1,
+            self.decode_time.as_millis(),
+            self.closest_color(),
+            self.color_coordinate().0,
+            self.color_coordinate().1,
+            self.average.0,
+            self.average.1,
+            self.reds,
+            (self.reds as f32 / self.colors.len() as f32) * 100f32,
+            self.greens,
+            (self.greens as f32 / self.colors.len() as f32) * 100f32,
+            self.blues,
+            (self.blues as f32 / self.colors.len() as f32) * 100f32,
+            self.nones,
+            (self.nones as f32 / self.colors.len() as f32) * 100f32
         );
     }
 }
@@ -260,11 +267,8 @@ impl<'stream> CameraVideoStream<'stream> {
         let (buf, _meta) = self.stream.next().unwrap();
 
         let mut decoder = JpegDecoder::new(ZCursor::new(buf));
-        decoder.set_options(
-            DecoderOptions::default()
-                .jpeg_set_out_colorspace(ColorSpace::YCbCr),
-        );
-        
-        Frame::new( decoder)
+        decoder.set_options(DecoderOptions::default().jpeg_set_out_colorspace(ColorSpace::YCbCr));
+
+        Frame::new(decoder)
     }
 }

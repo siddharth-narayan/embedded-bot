@@ -1,9 +1,6 @@
-use std::{
-    time::{Duration, SystemTime},
-};
+use std::time::{Duration, SystemTime};
 
 use crate::{
-    actions::timer_check,
     camera::{CameraVideoStream, ClosestColor},
     control::Robot,
 };
@@ -46,7 +43,7 @@ fn main() {
     let start_time = SystemTime::now();
     let mut last_action_time = SystemTime::UNIX_EPOCH;
     loop {
-        timer_check(start_time);
+        robot.timer_check(start_time);
         let frame = camera_stream.get_next_frame();
 
         let closest_color = frame.closest_color();
@@ -58,7 +55,7 @@ fn main() {
                 frame.print();
 
                 _ = robot.set_all_lights(LightColor::red());
-                
+
                 if time_since_last_action > Duration::from_millis(2000) {
                     last_action_time = SystemTime::now();
                     robot.red_action()
@@ -91,7 +88,7 @@ fn main() {
                 if debug {
                     frame.print();
                 }
-                
+
                 _ = robot.set_all_lights(LightColor::white());
 
                 robot.idle_action()

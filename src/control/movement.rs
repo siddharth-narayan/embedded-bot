@@ -1,4 +1,4 @@
-use std::{thread::sleep, time::Duration, fmt};
+use std::{fmt, thread::sleep, time::Duration};
 
 use i2cdev::linux::LinuxI2CError;
 

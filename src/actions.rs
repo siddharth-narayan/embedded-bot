@@ -3,26 +3,40 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::control::{Robot, movement::{Direction, Rotation}};
+use crate::control::{
+    Robot,
+    light::{LightColor},
+    movement::{Direction, Rotation},
+    servo::Servo,
+};
 
-pub fn timer_check(start_time: SystemTime) {
-    if let Ok(duration) = start_time.elapsed() {
-        if duration > Duration::from_secs(45) {
-            println!("Program has continued for more than 45 seconds, exiting");
-            exit(0)
-        }
-    }
-}
+static ACTION_MOVE_SPEED: u8 = 20;
 
 impl Robot {
     pub fn startup_action(&mut self) {
         println!("Executing startup action");
+
+        // Set camera to normal height
+        let _ = self.move_servo(Servo::CameraPan, 90);
+        let _ = self.move_servo(Servo::CameraTilt, 60);
 
         let _ = self.move_rotate(Rotation::Clockwise, 255, Duration::from_millis(1000));
     }
 
     pub fn idle_action(&mut self) {
         // Do nothing :)
+    }
+
+    pub fn timer_check(&mut self, start_time: SystemTime) {
+        if let Ok(duration) = start_time.elapsed() {
+            if duration > Duration::from_secs(45) {
+                println!("Program has continued for more than 45 seconds, exiting");
+
+                let _ = self.set_all_lights(LightColor::black());
+
+                exit(0)
+            }
+        }
     }
 
     pub fn red_action(&mut self) {
@@ -32,7 +46,6 @@ impl Robot {
     }
 
     pub fn green_action(&mut self, coordinate: (usize, usize), dimensions: (usize, usize)) {
-
         // The camera seems to be flipped, so use the Y axis as horizontal direction
         let direction = if coordinate.0 < (dimensions.0 / 2) {
             Rotation::CounterClockwise
@@ -45,12 +58,10 @@ impl Robot {
             coordinate.0, coordinate.1, direction
         );
 
-        _ = self.move_rotate(direction, 60, Duration::from_millis(250));
-        
+        _ = self.move_rotate(direction, ACTION_MOVE_SPEED, Duration::from_millis(250));
     }
 
     pub fn blue_action(&mut self, coordinate: (usize, usize), dimensions: (usize, usize)) {
-
         // The camera seems to be flipped, so use the Y axis as horizontal direction
         let direction = if coordinate.0 < (dimensions.0 / 2) {
             Direction::Left
@@ -63,6 +74,10 @@ impl Robot {
             coordinate.0, coordinate.1, direction
         );
 
-        _ = self.move_direction(direction, 60, Duration::from_millis(250));
+        _ = self.move_direction(
+            direction,
+            ACTION_MOVE_SPEED + 30,
+            Duration::from_millis(250),
+        );
     }
 }

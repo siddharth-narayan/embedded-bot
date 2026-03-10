@@ -1,0 +1,8 @@
+[Unit]
+Description=Start the robot
+
+[Service]
+ExecStart=/home/group-5/project/target/release/project
+
+[Install]
+WantedBy=multi-user.target
